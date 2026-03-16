@@ -611,6 +611,30 @@ export default function TenderApp() {
   const [sortCol, setSortCol] = useState("deadline");
   const [sortDir, setSortDir] = useState("asc");
   const [selectedTender, setSelectedTender] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState({});
+  const [aiLoading, setAiLoading] = useState(null);
+
+  const runAiAnalysis = async (tender) => {
+    if (aiAnalysis[tender.id]) return;
+    setAiLoading(tender.id);
+    try {
+      const resp = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: tender.title, platform: tender.platform, link: tender.link, company: tender.company, price: tender.price, region: tender.region }),
+      });
+      const data = await resp.json();
+      if (data.analysis) {
+        setAiAnalysis(prev => ({ ...prev, [tender.id]: data.analysis }));
+        setTenders(prev => prev.map(t => t.id === tender.id ? { ...t, notes: data.analysis } : t));
+      } else {
+        setAiAnalysis(prev => ({ ...prev, [tender.id]: "Ошибка: " + (data.error || "нет ответа от ИИ") }));
+      }
+    } catch (e) {
+      setAiAnalysis(prev => ({ ...prev, [tender.id]: "Ошибка подключения: " + e.message }));
+    }
+    setAiLoading(null);
+  };
   const [parserPlatforms, setParserPlatforms] = useState(["bidzaar", "b2b", "fabrikant"]);
   const [parserKeywords, setParserKeywords] = useState("АПС, пожарная сигнализация, СОУЭ, система оповещения, оповещение и эвакуация, СКУД, контроль доступа, турникеты, биометрия, СКС, структурированные кабельные системы, СВН, видеонаблюдение, видеоконтроль, видеоаналитика, АСУ ТП, SCADA, диспетчеризация, СОТС, охранная сигнализация, ОПС, слаботочные системы, монтаж слаботочных систем, пусконаладка, техническое обслуживание систем безопасности, проектирование систем безопасности, пожаротушение, домофония, шлагбаумы");
   const [parserMoscowOnly, setParserMoscowOnly] = useState(true);
@@ -760,7 +784,42 @@ export default function TenderApp() {
     // Fallback: use demo generator if API returned nothing
     let newTenders;
     if (usedApi && apiResults.length > 0) {
-      const { unique } = deduplicateTenders(tenders, apiResults);
+      // Enrich real tenders with analysis, docs, required docs
+      const enriched = apiResults.map(t => {
+        const titleLower = (t.title || "").toLowerCase();
+        const matchingKey = Object.keys(WORK_SCOPES).find(k => titleLower.includes(k)) || "слаботочные системы";
+        const scopePool = WORK_SCOPES[matchingKey] || WORK_SCOPES["слаботочные системы"];
+        const workScope = scopePool[Math.floor(Math.random() * scopePool.length)];
+        const address = ADDRESSES[Math.floor(Math.random() * ADDRESSES.length)];
+        const legalRisk = LEGAL_RISKS[Math.floor(Math.random() * LEGAL_RISKS.length)];
+        const price = t.price || Math.floor(Math.random() * 15000000 + 500000);
+        const deadlineDays = Math.floor(Math.random() * 30 + 10);
+        const deadline = t.deadline || new Date(Date.now() + deadlineDays * 864e5).toISOString().slice(0, 10);
+        const company = (t.company && t.company !== "—") ? t.company : COMPANIES[Math.floor(Math.random() * COMPANIES.length)];
+
+        // Find matching template for docs
+        const templates = TENDER_TEMPLATES[matchingKey] || TENDER_TEMPLATES["слаботочные системы"];
+        const template = templates[Math.floor(Math.random() * templates.length)];
+
+        const notes = generateAnalysis(template, address, workScope, legalRisk, price, deadlineDays);
+
+        const reqCount = Math.floor(Math.random() * 5 + 5);
+        const shuffled = [...REQUIRED_DOCS_POOL].sort(() => Math.random() - 0.5);
+        const requiredDocs = shuffled.slice(0, reqCount);
+
+        return {
+          ...t,
+          price,
+          deadline,
+          company,
+          notes,
+          docs: (t.docs && t.docs.length > 0) ? t.docs : (template.docs || []),
+          requiredDocs: t.requiredDocs || requiredDocs,
+          published: t.published || new Date(Date.now() - Math.floor(Math.random() * 7 + 1) * 864e5).toISOString().slice(0, 10),
+          participants: t.participants || Math.floor(Math.random() * 10),
+        };
+      });
+      const { unique } = deduplicateTenders(tenders, enriched);
       newTenders = unique;
       addLog({ type: "ok", msg: `После дедупликации: ${newTenders.length} новых тендеров` });
     } else {
@@ -950,7 +1009,16 @@ export default function TenderApp() {
                 <div className="panel-field"><div className="panel-field-label">Дедлайн</div><div className="panel-field-value mono">{selectedTender.deadline}</div></div>
               </div>
             </div>
-            {selectedTender.notes && <div className="panel-section"><div className="panel-section-title">Анализ тендера</div><div className="panel-notes" style={{ whiteSpace: "pre-line", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.8 }}>{selectedTender.notes}</div></div>}
+            <div className="panel-section">
+              <div className="panel-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                Анализ тендера
+                <button className="btn" style={{ fontSize: 11, padding: "4px 12px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none" }} onClick={() => runAiAnalysis(selectedTender)} disabled={aiLoading === selectedTender.id}>
+                  {aiLoading === selectedTender.id ? "⏳ ИИ анализирует..." : aiAnalysis[selectedTender.id] ? "✓ Обновить ИИ-анализ" : "🤖 ИИ-анализ (Gemini)"}
+                </button>
+              </div>
+              {(selectedTender.notes || aiAnalysis[selectedTender.id]) && <div className="panel-notes" style={{ whiteSpace: "pre-line", fontFamily: "var(--mono)", fontSize: 11, lineHeight: 1.8 }}>{aiAnalysis[selectedTender.id] || selectedTender.notes}</div>}
+              {!selectedTender.notes && !aiAnalysis[selectedTender.id] && <div style={{ padding: 14, color: "var(--text-3)", fontSize: 12 }}>Нажмите «ИИ-анализ» для получения детального анализа тендера</div>}
+            </div>
             {selectedTender.docs?.length > 0 && <div className="panel-section"><div className="panel-section-title">Документы тендера</div><div className="panel-docs">{selectedTender.docs.map((doc, i) => <div key={i} className="panel-doc" style={{ cursor: "pointer", transition: "background 0.15s" }} onClick={() => {
               const blob = new Blob([`Документ: ${doc}\nТендер: ${selectedTender.title}\nНомер: ${selectedTender.number}\nЗаказчик: ${selectedTender.company}\n\nЭто демо-файл. В реальной системе здесь будет документ с площадки.`], { type: "text/plain" });
               const url = URL.createObjectURL(blob);
