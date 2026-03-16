@@ -699,65 +699,89 @@ export default function TenderApp() {
     byPlatform: _.countBy(tenders, "platform"),
   };
 
-  const startParsing = () => {
+  const startParsing = async () => {
     setParsing(true); setParseProgress(0); setParseLogs([]); setParseResults(null);
 
-    // Generate real tenders based on settings
-    const rawGenerated = generateTenders(parserPlatforms, parserKeywords, parserMoscowOnly, parserAllPages);
-    const { unique: newTenders, dupeCount } = deduplicateTenders(tenders, rawGenerated);
-    const filteredOutCount = parserMoscowOnly ? Math.floor(Math.random() * 4 + 1) : 0;
+    const addLog = (log) => {
+      setParseLogs(prev => [...prev, { ...log, time: new Date().toLocaleTimeString("ru-RU") }]);
+    };
 
-    // Build log sequence
-    const allLogs = [];
-    allLogs.push({ type: "info", msg: "Инициализация парсера тендеров..." });
-    allLogs.push({ type: "info", msg: `Ключевые слова: ${parserKeywords}` });
-    allLogs.push({ type: "info", msg: `Фильтр: ${parserMoscowOnly ? "только Москва / МО" : "все регионы"}` });
-    allLogs.push({ type: "info", msg: `Режим: ${parserAllPages ? "все страницы (2, 3, 4...)" : "только первая"}` });
+    addLog({ type: "info", msg: "Инициализация парсера тендеров..." });
+    addLog({ type: "info", msg: `Ключевые слова: ${parserKeywords}` });
+    addLog({ type: "info", msg: `Фильтр: ${parserMoscowOnly ? "только Москва" : "все регионы"}` });
+    setParseProgress(5);
 
-    const perPlatformCounts = {};
-    parserPlatforms.forEach(pId => {
-      const scenario = PARSE_SCENARIOS[pId];
-      if (!scenario) return;
-      const pages = parserAllPages ? scenario.pages : 1;
-      const platformTenders = rawGenerated.filter(t => t.platform === pId);
-      const perPage = Math.ceil(platformTenders.length / pages);
-      allLogs.push({ type: "info", msg: `── ${PLATFORMS.find(p => p.id === pId)?.name} ──` });
-      for (let pg = 1; pg <= pages; pg++) {
-        scenario.logs(pg).forEach(l => allLogs.push(l));
-        const pageCount = Math.min(perPage, platformTenders.length - (pg - 1) * perPage);
-        allLogs.push({ type: "ok", msg: `${PLATFORMS.find(p => p.id === pId)?.name}: стр. ${pg} — найдено ${Math.max(pageCount, 0)} карточек` });
-      }
-      perPlatformCounts[pId] = platformTenders.length;
-    });
+    let apiResults = [];
+    let usedApi = false;
 
-    allLogs.push({ type: "info", msg: "── Обработка результатов ──" });
-    allLogs.push({ type: "ok", msg: `Всего найдено карточек: ${rawGenerated.length}` });
-    allLogs.push({ type: "info", msg: "Дедупликация..." });
-    if (dupeCount > 0) allLogs.push({ type: "warn", msg: `Удалено дублей: ${dupeCount}` });
-    else allLogs.push({ type: "ok", msg: "Дублей не найдено" });
-    if (parserMoscowOnly && filteredOutCount > 0) {
-      allLogs.push({ type: "info", msg: "Фильтрация Москва/МО..." });
-      allLogs.push({ type: "warn", msg: `Отфильтровано не-Москва: ${filteredOutCount}` });
-    }
-    allLogs.push({ type: "ok", msg: `Новых тендеров: ${newTenders.length}` });
-    allLogs.push({ type: "ok", msg: `Парсинг завершён. Итого в базе будет: ${tenders.length + newTenders.length}` });
+    // Try real API first
+    try {
+      addLog({ type: "info", msg: "Подключение к серверу парсинга..." });
+      setParseProgress(10);
 
-    let idx = 0;
-    parseRef.current = setInterval(() => {
-      if (idx < allLogs.length) {
-        setParseLogs(prev => [...prev, { ...allLogs[idx], time: new Date().toLocaleTimeString("ru-RU") }]);
-        setParseProgress(Math.round(((idx + 1) / allLogs.length) * 100));
-        idx++;
-      } else {
-        clearInterval(parseRef.current);
-        setParsing(false);
-        setParseResults({ total: rawGenerated.length, new: newTenders.length });
-        // Actually add new tenders to state
-        if (newTenders.length > 0) {
-          setTenders(prev => [...prev, ...newTenders]);
+      const params = new URLSearchParams({
+        keywords: parserKeywords,
+        region: parserMoscowOnly ? "Москва" : "",
+        pages: parserAllPages ? "3" : "1",
+        platforms: parserPlatforms.join(","),
+      });
+
+      const response = await fetch(`/api/parse-all?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Show real logs from server
+        (data.logs || []).forEach((log, i) => {
+          setTimeout(() => {
+            addLog(log);
+            setParseProgress(10 + Math.round((i / (data.logs.length || 1)) * 70));
+          }, i * 100);
+        });
+
+        // Wait for logs to display
+        await new Promise(r => setTimeout(r, (data.logs?.length || 0) * 100 + 200));
+
+        if (data.results && data.results.length > 0) {
+          apiResults = data.results;
+          usedApi = true;
+          addLog({ type: "ok", msg: `Реальный парсинг: найдено ${data.results.length} тендеров` });
+        } else {
+          addLog({ type: "warn", msg: "Площадки не вернули результатов. Используется демо-генератор." });
         }
+      } else {
+        addLog({ type: "warn", msg: `Сервер парсинга недоступен (HTTP ${response.status}). Используется демо-генератор.` });
       }
-    }, 450);
+    } catch (err) {
+      addLog({ type: "warn", msg: `Не удалось подключиться к серверу: ${err.message}` });
+      addLog({ type: "info", msg: "Переключение на демо-генератор..." });
+    }
+
+    setParseProgress(80);
+
+    // Fallback: use demo generator if API returned nothing
+    let newTenders;
+    if (usedApi && apiResults.length > 0) {
+      const { unique } = deduplicateTenders(tenders, apiResults);
+      newTenders = unique;
+      addLog({ type: "ok", msg: `После дедупликации: ${newTenders.length} новых тендеров` });
+    } else {
+      const rawGenerated = generateTenders(parserPlatforms, parserKeywords, parserMoscowOnly, parserAllPages);
+      const { unique, dupeCount } = deduplicateTenders(tenders, rawGenerated);
+      newTenders = unique;
+      addLog({ type: "info", msg: `Демо-генератор: создано ${rawGenerated.length} тендеров` });
+      if (dupeCount > 0) addLog({ type: "warn", msg: `Удалено дублей: ${dupeCount}` });
+    }
+
+    setParseProgress(95);
+    addLog({ type: "ok", msg: `Новых тендеров: ${newTenders.length}` });
+    addLog({ type: "ok", msg: `Парсинг завершён. Итого в базе будет: ${tenders.length + newTenders.length}` });
+
+    setParseProgress(100);
+    setParsing(false);
+    setParseResults({ total: (usedApi ? apiResults.length : newTenders.length), new: newTenders.length, source: usedApi ? "API" : "демо" });
+    // Add new tenders to state
+    if (newTenders.length > 0) {
+      setTenders(prev => [...prev, ...newTenders]);
+    }
   };
 
   useEffect(() => () => { if (parseRef.current) clearInterval(parseRef.current); }, []);
