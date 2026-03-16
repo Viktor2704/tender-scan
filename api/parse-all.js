@@ -1,53 +1,43 @@
-import axios from "axios";
+import { parseBidzaar } from "./parse-bidzaar.js";
+import { parseB2B } from "./parse-b2b.js";
+import { parseFabrikant } from "./parse-fabrikant.js";
 
-// Unified endpoint that calls all parsers
+const PARSERS = {
+  bidzaar: parseBidzaar,
+  b2b: parseB2B,
+  fabrikant: parseFabrikant,
+};
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const {
     keywords = "",
-    region = "Москва",
     pages = "2",
     platforms = "bidzaar,b2b,fabrikant",
   } = req.query || {};
 
-  const selectedPlatforms = platforms.split(",").map(p => p.trim()).filter(Boolean);
+  const selectedPlatforms = platforms.split(",").map(p => p.trim()).filter(p => PARSERS[p]);
   const allResults = [];
   const allLogs = [];
-  const errors = [];
 
   allLogs.push({ type: "info", msg: "Инициализация парсера тендеров..." });
   allLogs.push({ type: "info", msg: `Ключевые слова: ${keywords || "(все)"}` });
-  allLogs.push({ type: "info", msg: `Регион: ${region}` });
   allLogs.push({ type: "info", msg: `Площадки: ${selectedPlatforms.join(", ")}` });
 
-  // Determine base URL for internal API calls
-  const protocol = req.headers["x-forwarded-proto"] || "https";
-  const host = req.headers.host;
-  const baseUrl = `${protocol}://${host}`;
-
-  // Parse all platforms in parallel
+  // Run all parsers in parallel — direct function calls, no HTTP
   const promises = selectedPlatforms.map(async (platform) => {
-    const endpoint = `${baseUrl}/api/parse-${platform}`;
     try {
-      const response = await axios.get(endpoint, {
-        params: { keywords, region, pages },
-        timeout: 30000,
-      });
-      return response.data;
+      return await PARSERS[platform](keywords, pages);
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message;
       return {
         platform,
         results: [],
         total: 0,
-        logs: [
-          { type: "err", msg: `${platform}: не удалось подключиться — ${errorMsg}` },
-        ],
+        logs: [{ type: "err", msg: `${platform}: критическая ошибка — ${err.message}` }],
       };
     }
   });
@@ -62,34 +52,32 @@ export default async function handler(req, res) {
       allLogs.push(...(data.logs || []));
     } else {
       const reason = response.reason?.message || "Неизвестная ошибка";
-      allLogs.push({ type: "err", msg: `${platform}: критическая ошибка — ${reason}` });
-      errors.push({ platform, error: reason });
+      allLogs.push({ type: "err", msg: `${platform}: ${reason}` });
     }
   });
 
   // Deduplicate by title
   const seen = new Set();
   const unique = allResults.filter(t => {
-    const key = t.title.toLowerCase().trim();
-    if (seen.has(key)) return false;
+    const key = (t.title || "").toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
   const dupeCount = allResults.length - unique.length;
   if (dupeCount > 0) {
-    allLogs.push({ type: "info", msg: "Дедупликация..." });
     allLogs.push({ type: "warn", msg: `Удалено дублей: ${dupeCount}` });
   }
 
   // Format results with IDs
   const formatted = unique.map((t, i) => ({
     id: `parse-${Date.now()}-${i}`,
-    number: t.number || `${t.platform.toUpperCase()}-${i}`,
+    number: t.number || `${(t.platform || "").toUpperCase()}-${i}`,
     title: t.title,
     platform: t.platform,
     company: t.company || "—",
-    region: t.region || region,
+    region: t.region || "Москва",
     price: t.price || 0,
     deadline: t.deadline || "",
     published: t.published || "",
@@ -108,6 +96,5 @@ export default async function handler(req, res) {
     results: formatted,
     total: formatted.length,
     logs: allLogs,
-    errors,
   });
 }

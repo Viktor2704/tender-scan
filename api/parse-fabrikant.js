@@ -1,22 +1,16 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 
-// Fabrikant config from TZ
-// Login: v.galkin@novinjstroi.ru (password in env)
-// Login URL: https://www.fabrikant.ru/auth?role=1&section=2
-// Search with Moscow/MO filters baked into URL
 const BASE_URL = "https://www.fabrikant.ru";
-const LOGIN_URL = `${BASE_URL}/auth?role=1&section=2`;
 
-// Pre-configured search URL with Moscow + MO regions, commercial, active status
 function buildSearchUrl(query, page = 1) {
   const params = new URLSearchParams();
   params.append("customer_region_ids[]", "xVpBKhHQGM_wSt6xsRvDFg"); // Moscow
   params.append("customer_region_ids[]", "v5Vyhe3DF-8Z4oX6kQWKhA"); // Moscow Oblast
   params.append("page_number", String(page));
-  params.append("section_ids[]", "8"); // Commercial
-  params.append("section_ids[]", "2"); // Commercial
-  params.append("statuses[]", "1"); // Active (accepting applications)
+  params.append("section_ids[]", "8");
+  params.append("section_ids[]", "2");
+  params.append("statuses[]", "1");
   if (query) params.append("query", query);
   return `${BASE_URL}/procedure/search?${params.toString()}`;
 }
@@ -39,7 +33,7 @@ function isAllowedLink(href) {
   return ALLOWED_LINK_SUBSTRINGS.some(a => href.includes(a));
 }
 
-async function loginFabrikant(login, password, cookies) {
+async function loginFabrikant(login, password) {
   try {
     const response = await axios.post(`${BASE_URL}/api/auth/login`, {
       login, password, role: 1,
@@ -55,7 +49,7 @@ async function loginFabrikant(login, password, cookies) {
   }
 }
 
-async function parseFabrikant(query, page, cookies) {
+async function searchFabrikantPage(query, page, cookies) {
   const results = [];
   const url = buildSearchUrl(query, page);
 
@@ -68,17 +62,14 @@ async function parseFabrikant(query, page, cookies) {
 
     const $ = cheerio.load(response.data);
 
-    // Parse procedure/tender cards
     $("a, [class*='procedure'], [class*='trade'], [class*='tender'], [class*='lot'], tr").each((_, el) => {
       const $el = $(el);
       const href = $el.attr("href") || $el.find("a").first().attr("href") || "";
-
       if (!isAllowedLink(href)) return;
 
       const title = $el.text().trim() || $el.find("a").first().text().trim();
       if (!title || title.length < 10 || title.length > 500) return;
 
-      // Extract documents
       const docs = [];
       $el.find("a").each((_, a) => {
         const docHref = $(a).attr("href") || "";
@@ -104,7 +95,6 @@ async function parseFabrikant(query, page, cookies) {
       });
     });
 
-    // Deduplicate by link
     const seen = new Set();
     const unique = results.filter(r => {
       if (!r.link || seen.has(r.link)) return false;
@@ -118,24 +108,17 @@ async function parseFabrikant(query, page, cookies) {
   }
 }
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
-
-  const { keywords = "АПС", region = "Москва", pages = 1 } = req.query || {};
-  const login = process.env.FABRIKANT_LOGIN;
-  const password = process.env.FABRIKANT_PASSWORD;
-
+// Core function — can be imported by parse-all
+export async function parseFabrikant(keywords, pages) {
   const allResults = [];
   const logs = [];
   const pageCount = Math.min(parseInt(pages) || 1, 8);
   let cookies = null;
+  const login = process.env.FABRIKANT_LOGIN;
+  const password = process.env.FABRIKANT_PASSWORD;
 
   logs.push({ type: "info", msg: "Фабрикант: подключение..." });
 
-  // Login if credentials available
   if (login && password) {
     logs.push({ type: "info", msg: "Фабрикант: авторизация..." });
     const auth = await loginFabrikant(login, password);
@@ -147,19 +130,19 @@ export default async function handler(req, res) {
     }
   }
 
-  // Split keywords and search for each
-  const keywordList = keywords.split(",").map(k => k.trim()).filter(Boolean).slice(0, 5);
+  const keywordList = (keywords || "").split(",").map(k => k.trim()).filter(Boolean).slice(0, 5);
+  if (keywordList.length === 0) keywordList.push("");
 
   for (const kw of keywordList) {
     for (let page = 1; page <= pageCount; page++) {
-      logs.push({ type: "info", msg: `Фабрикант: «${kw}» стр. ${page}...` });
-      const { results, error, status } = await parseFabrikant(kw, page, cookies);
+      logs.push({ type: "info", msg: `Фабрикант: «${kw || "все"}» стр. ${page}...` });
+      const { results, error, status } = await searchFabrikantPage(kw, page, cookies);
 
       if (error) {
         logs.push({ type: "err", msg: `Фабрикант: ошибка — ${error} (HTTP ${status || "?"})` });
         if (status === 403 || status === 429) {
           await new Promise(r => setTimeout(r, 2000));
-          const retry = await parseFabrikant(kw, page, cookies);
+          const retry = await searchFabrikantPage(kw, page, cookies);
           if (!retry.error) {
             allResults.push(...retry.results);
             logs.push({ type: "ok", msg: `Фабрикант: повтор — ${retry.results.length} тендеров` });
@@ -167,12 +150,11 @@ export default async function handler(req, res) {
         }
       } else {
         allResults.push(...results);
-        logs.push({ type: "ok", msg: `Фабрикант: «${kw}» стр. ${page} — ${results.length} тендеров` });
+        logs.push({ type: "ok", msg: `Фабрикант: «${kw || "все"}» стр. ${page} — ${results.length} тендеров` });
       }
     }
   }
 
-  // Deduplicate across keywords
   const seen = new Set();
   const unique = allResults.filter(r => {
     const key = r.link || r.title;
@@ -183,5 +165,16 @@ export default async function handler(req, res) {
 
   logs.push({ type: "ok", msg: `Фабрикант: итого ${unique.length} уникальных тендеров` });
 
-  return res.status(200).json({ platform: "fabrikant", results: unique, total: unique.length, logs });
+  return { platform: "fabrikant", results: unique, total: unique.length, logs };
+}
+
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  const { keywords = "АПС", pages = 1 } = req.query || {};
+  const result = await parseFabrikant(keywords, pages);
+  return res.status(200).json(result);
 }
