@@ -46,6 +46,135 @@ function createDemoTenders() {
   ];
 }
 
+const TENDER_TEMPLATES = {
+  "видеонаблюдение": [
+    { title: "Монтаж системы видеонаблюдения", notes: "IP-камеры, регистраторы, монтаж + ПНР" },
+    { title: "Модернизация видеонаблюдения офиса", notes: "Замена аналоговых камер на IP. Обследование + проект." },
+    { title: "Установка видеонаблюдения на складе", notes: "Периметр + внутренние зоны. Около 40 камер." },
+    { title: "Видеонаблюдение для парковки БЦ", notes: "Уличные камеры, распознавание номеров." },
+    { title: "Расширение системы видеонаблюдения ТЦ", notes: "Добавить 25 камер к существующей системе." },
+    { title: "Проект видеонаблюдения жилого комплекса", notes: "Дворовая территория + подъезды. Около 120 камер." },
+  ],
+  "скуд": [
+    { title: "Монтаж СКУД бизнес-центра", notes: "Турникеты, считыватели, контроллеры доступа." },
+    { title: "Модернизация СКУД офисного здания", notes: "Переход на карты Mifare DESFire." },
+    { title: "Установка СКУД на проходной завода", notes: "Биометрия + карты. 4 проходных." },
+    { title: "СКУД для серверной и ЦОД", notes: "Двухфакторная аутентификация, шлюзы." },
+    { title: "Интеграция СКУД с видеонаблюдением", notes: "Единая система безопасности. Программная интеграция." },
+  ],
+  "скс": [
+    { title: "Монтаж СКС офисного этажа", notes: "Cat6A, 120 портов, патч-панели, СКШ." },
+    { title: "Проектирование СКС нового офиса", notes: "Рабочий проект + спецификация оборудования." },
+    { title: "Расширение СКС серверной", notes: "Оптика + медь. Кросс-коммутация." },
+    { title: "Аудит и сертификация СКС", notes: "Fluke-тестирование, паспортизация, отчёт." },
+    { title: "Техобслуживание СКС здания", notes: "Годовой контракт. Диагностика + ремонт." },
+  ],
+  "слаботочные системы": [
+    { title: "Проектирование слаботочных систем БЦ", notes: "СКУД + видео + СКС + ОПС. Комплексный проект." },
+    { title: "Монтаж слаботочных систем этажа", notes: "Кабельные трассы, лотки, закладные." },
+    { title: "Комплексное оснащение слаботочкой нового здания", notes: "Все системы под ключ. Нужен допуск СРО." },
+    { title: "Обслуживание слаботочных систем", notes: "Ежемесячное ТО, аварийные выезды." },
+  ],
+  "пожарная сигнализация": [
+    { title: "Монтаж АПС и СОУЭ", notes: "Адресная система, оповещение 3 типа." },
+    { title: "Замена пожарной сигнализации здания", notes: "Демонтаж старой + установка новой. Болид." },
+    { title: "Проект пожарной сигнализации ТЦ", notes: "Рабочая документация + согласование." },
+    { title: "Техническое обслуживание АПС", notes: "Квартальное ТО, замена извещателей." },
+  ],
+  "опс": [
+    { title: "Монтаж охранно-пожарной сигнализации", notes: "ОПС + тревожная кнопка. Вывод на ПЦН." },
+    { title: "Модернизация ОПС офисного комплекса", notes: "Переход на адресную систему." },
+  ],
+  "сервер": [
+    { title: "Поставка и монтаж серверного оборудования", notes: "Стойки, СКШ, PDU, организация кабелей." },
+    { title: "Оснащение серверной комнаты", notes: "Фальшпол, кондиционирование, мониторинг." },
+  ],
+};
+
+const COMPANIES = [
+  "ПАО «Ростелеком»", "АО «Газпром нефть»", "ООО «Яндекс»", "ПАО «МТС»",
+  "ООО «Вайлдберриз»", "АО «Транснефть»", "ПАО «Сбербанк»", "ООО «Озон»",
+  "ГБУ «Жилищник»", "ФГУП «Охрана» Росгвардии", "ООО «Капитал Групп»",
+  "АО «Почта России»", "ПАО «ВТБ»", "ООО «Ситилинк»", "АО «РЖД»",
+  "ООО «МЕГА-Ритейл»", "ГБУ «Автомобильные дороги»", "АО «Мосэнерго»",
+  "ООО «ПИК-Комфорт»", "ФГБУ «Управление делами»", "ООО «Девелопмент»",
+  "АО «МОЭК»", "ООО «Ашан»", "ПАО «Аэрофлот»", "АО «ДОМ.РФ»",
+];
+
+const REGIONS_MOSCOW = ["Москва", "Московская область"];
+const REGIONS_OTHER = ["Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Нижний Новгород", "Самара", "Краснодар", "Воронеж"];
+
+const PLATFORM_PREFIXES = { bidzaar: "BZ", b2b: "B2B", fabrikant: "ФБ" };
+
+function generateTenders(platforms, keywordsStr, moscowOnly, allPages) {
+  const keywords = keywordsStr.toLowerCase().split(/[,;]+/).map(k => k.trim()).filter(Boolean);
+  const generated = [];
+  let counter = Date.now();
+
+  platforms.forEach(platformId => {
+    const pages = allPages ? (platformId === "bidzaar" ? 4 : platformId === "b2b" ? 3 : 2) : 1;
+    const tendersPerPage = platformId === "bidzaar" ? [5, 8] : platformId === "b2b" ? [2, 5] : [1, 3];
+
+    for (let page = 1; page <= pages; page++) {
+      const count = Math.floor(Math.random() * (tendersPerPage[1] - tendersPerPage[0] + 1)) + tendersPerPage[0];
+      for (let i = 0; i < count; i++) {
+        const keyword = keywords[Math.floor(Math.random() * keywords.length)] || "слаботочные системы";
+        const matchingKey = Object.keys(TENDER_TEMPLATES).find(k => keyword.includes(k) || k.includes(keyword));
+        const templates = TENDER_TEMPLATES[matchingKey] || TENDER_TEMPLATES["слаботочные системы"];
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        const prefix = PLATFORM_PREFIXES[platformId];
+        const num = Math.floor(Math.random() * 9000 + 1000);
+        const region = moscowOnly
+          ? REGIONS_MOSCOW[Math.floor(Math.random() * REGIONS_MOSCOW.length)]
+          : [...REGIONS_MOSCOW, ...REGIONS_OTHER][Math.floor(Math.random() * (REGIONS_MOSCOW.length + REGIONS_OTHER.length))];
+        const price = Math.floor(Math.random() * 15000000 + 500000);
+        const deadlineDays = Math.floor(Math.random() * 30 + 5);
+        const deadline = new Date(Date.now() + deadlineDays * 864e5).toISOString().slice(0, 10);
+        const published = new Date(Date.now() - Math.floor(Math.random() * 10 + 1) * 864e5).toISOString().slice(0, 10);
+
+        counter++;
+        generated.push({
+          id: `parse-${counter}-${i}`,
+          number: `${prefix}-2026-${num}`,
+          title: template.title,
+          platform: platformId,
+          company: COMPANIES[Math.floor(Math.random() * COMPANIES.length)],
+          region,
+          price,
+          deadline,
+          published,
+          eval: null,
+          status: "active",
+          participants: Math.floor(Math.random() * 10),
+          notes: template.notes,
+          docs: [],
+        });
+      }
+    }
+  });
+
+  return generated;
+}
+
+function deduplicateTenders(existing, newTenders) {
+  const existingTitles = new Set(existing.map(t => t.title.toLowerCase()));
+  const seen = new Set();
+  const unique = [];
+  const dupes = [];
+
+  newTenders.forEach(t => {
+    const key = t.title.toLowerCase();
+    if (existingTitles.has(key) || seen.has(key)) {
+      dupes.push(t);
+    } else {
+      seen.add(key);
+      unique.push(t);
+    }
+  });
+
+  return { unique, dupeCount: dupes.length };
+}
+
 const PARSE_SCENARIOS = {
   bidzaar: {
     pages: 4,
@@ -54,7 +183,6 @@ const PARSE_SCENARIOS = {
       { type: "ok", msg: `Bidzaar: страница ${page} загружена` },
       { type: "info", msg: `Bidzaar: парсинг карточек тендеров...` },
       ...(page === 2 ? [{ type: "warn", msg: `Bidzaar: динамическая подгрузка — нажимаю "Показать ещё"` }] : []),
-      { type: "ok", msg: `Bidzaar: стр. ${page} — найдено ${Math.floor(Math.random() * 8 + 5)} карточек` },
     ],
   },
   b2b: {
@@ -62,7 +190,6 @@ const PARSE_SCENARIOS = {
     logs: (page) => [
       { type: "info", msg: `B2B-Center: загрузка страницы ${page}...` },
       { type: "ok", msg: `B2B-Center: страница ${page} загружена` },
-      { type: "ok", msg: `B2B-Center: стр. ${page} — найдено ${Math.floor(Math.random() * 5 + 2)} карточек` },
     ],
   },
   fabrikant: {
@@ -70,7 +197,6 @@ const PARSE_SCENARIOS = {
     logs: (page) => [
       { type: "info", msg: `Фабрикант: загрузка страницы ${page}...` },
       ...(Math.random() > 0.7 ? [{ type: "err", msg: `Фабрикант: таймаут — повтор...` }, { type: "ok", msg: `Фабрикант: повторная загрузка успешна` }] : []),
-      { type: "ok", msg: `Фабрикант: стр. ${page} — найдено ${Math.floor(Math.random() * 3 + 1)} карточек` },
     ],
   },
 };
@@ -352,34 +478,62 @@ export default function TenderApp() {
 
   const startParsing = () => {
     setParsing(true); setParseProgress(0); setParseLogs([]); setParseResults(null);
+
+    // Generate real tenders based on settings
+    const rawGenerated = generateTenders(parserPlatforms, parserKeywords, parserMoscowOnly, parserAllPages);
+    const { unique: newTenders, dupeCount } = deduplicateTenders(tenders, rawGenerated);
+    const filteredOutCount = parserMoscowOnly ? Math.floor(Math.random() * 4 + 1) : 0;
+
+    // Build log sequence
     const allLogs = [];
     allLogs.push({ type: "info", msg: "Инициализация парсера тендеров..." });
     allLogs.push({ type: "info", msg: `Ключевые слова: ${parserKeywords}` });
     allLogs.push({ type: "info", msg: `Фильтр: ${parserMoscowOnly ? "только Москва / МО" : "все регионы"}` });
     allLogs.push({ type: "info", msg: `Режим: ${parserAllPages ? "все страницы (2, 3, 4...)" : "только первая"}` });
+
+    const perPlatformCounts = {};
     parserPlatforms.forEach(pId => {
       const scenario = PARSE_SCENARIOS[pId];
       if (!scenario) return;
       const pages = parserAllPages ? scenario.pages : 1;
+      const platformTenders = rawGenerated.filter(t => t.platform === pId);
+      const perPage = Math.ceil(platformTenders.length / pages);
       allLogs.push({ type: "info", msg: `── ${PLATFORMS.find(p => p.id === pId)?.name} ──` });
-      for (let pg = 1; pg <= pages; pg++) scenario.logs(pg).forEach(l => allLogs.push(l));
+      for (let pg = 1; pg <= pages; pg++) {
+        scenario.logs(pg).forEach(l => allLogs.push(l));
+        const pageCount = Math.min(perPage, platformTenders.length - (pg - 1) * perPage);
+        allLogs.push({ type: "ok", msg: `${PLATFORMS.find(p => p.id === pId)?.name}: стр. ${pg} — найдено ${Math.max(pageCount, 0)} карточек` });
+      }
+      perPlatformCounts[pId] = platformTenders.length;
     });
-    const newFound = Math.floor(Math.random() * 3);
-    const totalFound = Math.floor(Math.random() * 30 + 15);
+
     allLogs.push({ type: "info", msg: "── Обработка результатов ──" });
-    allLogs.push({ type: "ok", msg: `Всего найдено карточек: ${totalFound}` });
+    allLogs.push({ type: "ok", msg: `Всего найдено карточек: ${rawGenerated.length}` });
     allLogs.push({ type: "info", msg: "Дедупликация..." });
-    allLogs.push({ type: "ok", msg: `Удалено дублей: ${Math.floor(Math.random() * 5 + 1)}` });
-    if (parserMoscowOnly) { allLogs.push({ type: "info", msg: "Фильтрация Москва/МО..." }); allLogs.push({ type: "warn", msg: `Отфильтровано не-Москва: ${Math.floor(Math.random() * 8 + 2)}` }); }
-    allLogs.push({ type: "ok", msg: `Новых тендеров: ${newFound}` });
-    allLogs.push({ type: "ok", msg: `Парсинг завершён. Итого в базе: ${tenders.length + newFound}` });
+    if (dupeCount > 0) allLogs.push({ type: "warn", msg: `Удалено дублей: ${dupeCount}` });
+    else allLogs.push({ type: "ok", msg: "Дублей не найдено" });
+    if (parserMoscowOnly && filteredOutCount > 0) {
+      allLogs.push({ type: "info", msg: "Фильтрация Москва/МО..." });
+      allLogs.push({ type: "warn", msg: `Отфильтровано не-Москва: ${filteredOutCount}` });
+    }
+    allLogs.push({ type: "ok", msg: `Новых тендеров: ${newTenders.length}` });
+    allLogs.push({ type: "ok", msg: `Парсинг завершён. Итого в базе будет: ${tenders.length + newTenders.length}` });
+
     let idx = 0;
     parseRef.current = setInterval(() => {
       if (idx < allLogs.length) {
         setParseLogs(prev => [...prev, { ...allLogs[idx], time: new Date().toLocaleTimeString("ru-RU") }]);
         setParseProgress(Math.round(((idx + 1) / allLogs.length) * 100));
         idx++;
-      } else { clearInterval(parseRef.current); setParsing(false); setParseResults({ total: totalFound, new: newFound }); }
+      } else {
+        clearInterval(parseRef.current);
+        setParsing(false);
+        setParseResults({ total: rawGenerated.length, new: newTenders.length });
+        // Actually add new tenders to state
+        if (newTenders.length > 0) {
+          setTenders(prev => [...prev, ...newTenders]);
+        }
+      }
     }, 450);
   };
 
