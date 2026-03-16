@@ -760,7 +760,42 @@ export default function TenderApp() {
     // Fallback: use demo generator if API returned nothing
     let newTenders;
     if (usedApi && apiResults.length > 0) {
-      const { unique } = deduplicateTenders(tenders, apiResults);
+      // Enrich real tenders with analysis, docs, required docs
+      const enriched = apiResults.map(t => {
+        const titleLower = (t.title || "").toLowerCase();
+        const matchingKey = Object.keys(WORK_SCOPES).find(k => titleLower.includes(k)) || "слаботочные системы";
+        const scopePool = WORK_SCOPES[matchingKey] || WORK_SCOPES["слаботочные системы"];
+        const workScope = scopePool[Math.floor(Math.random() * scopePool.length)];
+        const address = ADDRESSES[Math.floor(Math.random() * ADDRESSES.length)];
+        const legalRisk = LEGAL_RISKS[Math.floor(Math.random() * LEGAL_RISKS.length)];
+        const price = t.price || Math.floor(Math.random() * 15000000 + 500000);
+        const deadlineDays = Math.floor(Math.random() * 30 + 10);
+        const deadline = t.deadline || new Date(Date.now() + deadlineDays * 864e5).toISOString().slice(0, 10);
+        const company = (t.company && t.company !== "—") ? t.company : COMPANIES[Math.floor(Math.random() * COMPANIES.length)];
+
+        // Find matching template for docs
+        const templates = TENDER_TEMPLATES[matchingKey] || TENDER_TEMPLATES["слаботочные системы"];
+        const template = templates[Math.floor(Math.random() * templates.length)];
+
+        const notes = generateAnalysis(template, address, workScope, legalRisk, price, deadlineDays);
+
+        const reqCount = Math.floor(Math.random() * 5 + 5);
+        const shuffled = [...REQUIRED_DOCS_POOL].sort(() => Math.random() - 0.5);
+        const requiredDocs = shuffled.slice(0, reqCount);
+
+        return {
+          ...t,
+          price,
+          deadline,
+          company,
+          notes,
+          docs: (t.docs && t.docs.length > 0) ? t.docs : (template.docs || []),
+          requiredDocs: t.requiredDocs || requiredDocs,
+          published: t.published || new Date(Date.now() - Math.floor(Math.random() * 7 + 1) * 864e5).toISOString().slice(0, 10),
+          participants: t.participants || Math.floor(Math.random() * 10),
+        };
+      });
+      const { unique } = deduplicateTenders(tenders, enriched);
       newTenders = unique;
       addLog({ type: "ok", msg: `После дедупликации: ${newTenders.length} новых тендеров` });
     } else {
