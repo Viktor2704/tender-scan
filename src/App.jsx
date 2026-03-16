@@ -46,6 +46,253 @@ function createDemoTenders() {
   ];
 }
 
+const TENDER_TEMPLATES = {
+  "апс": [
+    { title: "Монтаж АПС адресного типа", notes: "Болид С2000, адресные извещатели. Проект + монтаж + ПНР." },
+    { title: "Замена автоматической пожарной сигнализации", notes: "Демонтаж устаревшей АПС, монтаж новой адресной системы." },
+    { title: "Проектирование АПС административного здания", notes: "Рабочая документация, согласование с ГПН." },
+    { title: "Техническое обслуживание АПС", notes: "Квартальное ТО, замена извещателей, проверка шлейфов." },
+    { title: "Монтаж АПС складского комплекса", notes: "Линейные тепловые извещатели, аспирационные системы." },
+  ],
+  "пожарная сигнализация": [
+    { title: "Монтаж пожарной сигнализации БЦ", notes: "Адресная система, 6 этажей, ~400 извещателей." },
+    { title: "Модернизация пожарной сигнализации школы", notes: "Замена на адресную систему. Болид или Рубеж." },
+    { title: "Проект пожарной сигнализации ТЦ", notes: "Рабочая документация + согласование с МЧС." },
+    { title: "Капремонт пожарной сигнализации больницы", notes: "Полная замена кабельных линий и оборудования." },
+    { title: "Пожарная сигнализация для новостройки", notes: "Жилой комплекс, 3 корпуса, подземная парковка." },
+  ],
+  "соуэ": [
+    { title: "Монтаж СОУЭ 3 типа", notes: "Речевое оповещение, усилители, громкоговорители, световые табло." },
+    { title: "Модернизация системы оповещения здания", notes: "Переход с 2 на 3 тип СОУЭ. Речевые оповещатели." },
+    { title: "Проектирование СОУЭ торгового центра", notes: "4-5 тип, зональное оповещение, интеграция с АПС." },
+    { title: "Монтаж системы оповещения и эвакуации", notes: "СОУЭ 3 типа + план эвакуации + световые указатели." },
+  ],
+  "система оповещения": [
+    { title: "Установка системы речевого оповещения", notes: "Inter-M, усилители, акустические системы, микрофонная консоль." },
+    { title: "Модернизация системы оповещения и эвакуации", notes: "Замена устаревшего оборудования, расширение зон." },
+    { title: "Монтаж системы оповещения стадиона", notes: "Всепогодные рупоры, зональное управление." },
+  ],
+  "оповещение и эвакуация": [
+    { title: "Монтаж системы оповещения и управления эвакуацией", notes: "СОУЭ 3-5 типа, интеграция с пожарной сигнализацией." },
+    { title: "Проектирование системы оповещения и эвакуации ТЦ", notes: "Зональное оповещение, голосовые сообщения, световые табло." },
+  ],
+  "скуд": [
+    { title: "Монтаж СКУД бизнес-центра", notes: "Турникеты, считыватели, контроллеры доступа." },
+    { title: "Модернизация СКУД офисного здания", notes: "Переход на карты Mifare DESFire." },
+    { title: "Установка СКУД на проходной завода", notes: "Биометрия + карты. 4 проходных." },
+    { title: "СКУД для серверной и ЦОД", notes: "Двухфакторная аутентификация, шлюзы." },
+    { title: "Интеграция СКУД с видеонаблюдением", notes: "Единая система безопасности. Программная интеграция." },
+    { title: "Монтаж СКУД жилого комплекса", notes: "Домофоны + калитки + шлагбаумы. BAS-IP." },
+  ],
+  "контроль доступа": [
+    { title: "Система контроля доступа офисного здания", notes: "Проходная + внутренние двери. PERCo/Sigur." },
+    { title: "Контроль доступа на парковку БЦ", notes: "Шлагбаумы, считыватели дальнего действия, UHF-метки." },
+    { title: "Модернизация системы контроля доступа", notes: "Замена контроллеров, переход на IP-архитектуру." },
+  ],
+  "турникеты": [
+    { title: "Поставка и монтаж турникетов", notes: "Трипод/полуростовые, PERCo, 6 проходов." },
+    { title: "Замена турникетов на проходной", notes: "Демонтаж старых + установка новых. Интеграция со СКУД." },
+    { title: "Установка скоростных проходов", notes: "Сенсорные створки, антипаника, интеграция с 1С." },
+  ],
+  "биометрия": [
+    { title: "Внедрение биометрической системы доступа", notes: "Терминалы распознавания лиц + отпечатки пальцев." },
+    { title: "Модернизация СКУД с биометрией", notes: "Добавление биометрических считывателей к существующей СКУД." },
+    { title: "Биометрический учёт рабочего времени", notes: "Терминалы ZKTeco, интеграция с 1С:ЗУП." },
+  ],
+  "скс": [
+    { title: "Монтаж СКС офисного этажа", notes: "Cat6A, 120 портов, патч-панели, СКШ." },
+    { title: "Проектирование СКС нового офиса", notes: "Рабочий проект + спецификация оборудования." },
+    { title: "Расширение СКС серверной", notes: "Оптика + медь. Кросс-коммутация." },
+    { title: "Аудит и сертификация СКС", notes: "Fluke-тестирование, паспортизация, отчёт." },
+    { title: "Техобслуживание СКС здания", notes: "Годовой контракт. Диагностика + ремонт." },
+  ],
+  "структурированные кабельные системы": [
+    { title: "Монтаж структурированной кабельной системы", notes: "Cat6A/Cat7, кабельные лотки, патч-панели, маркировка." },
+    { title: "Проектирование СКС бизнес-центра", notes: "500+ портов, оптика между этажами, медь до рабочих мест." },
+    { title: "Сертификация структурированной кабельной системы", notes: "Тестирование Fluke DTX, паспорта линий, отчёт." },
+  ],
+  "свн": [
+    { title: "Монтаж системы видеонаблюдения периметра", notes: "Уличные PTZ-камеры, ИК-подсветка, видеосервер." },
+    { title: "Установка СВН на объекте промышленности", notes: "Взрывозащищённые камеры, оптика, видеоаналитика." },
+    { title: "Модернизация СВН торгового центра", notes: "Замена аналоговых камер на IP 4K, новый видеосервер." },
+  ],
+  "видеонаблюдение": [
+    { title: "Монтаж системы видеонаблюдения", notes: "IP-камеры, регистраторы, монтаж + ПНР." },
+    { title: "Модернизация видеонаблюдения офиса", notes: "Замена аналоговых камер на IP. Обследование + проект." },
+    { title: "Установка видеонаблюдения на складе", notes: "Периметр + внутренние зоны. Около 40 камер." },
+    { title: "Видеонаблюдение для парковки БЦ", notes: "Уличные камеры, распознавание номеров." },
+    { title: "Расширение системы видеонаблюдения ТЦ", notes: "Добавить 25 камер к существующей системе." },
+    { title: "Проект видеонаблюдения жилого комплекса", notes: "Дворовая территория + подъезды. Около 120 камер." },
+  ],
+  "видеоконтроль": [
+    { title: "Система видеоконтроля производственных помещений", notes: "IP-камеры, мониторы в диспетчерской, архив 30 дней." },
+    { title: "Видеоконтроль входных групп здания", notes: "Камеры + монитор вахты + запись." },
+  ],
+  "видеоаналитика": [
+    { title: "Внедрение системы видеоаналитики", notes: "Детекция лиц, подсчёт людей, трекинг объектов." },
+    { title: "Модернизация видеонаблюдения с видеоаналитикой", notes: "Macroscop/Trassir, детекция оставленных предметов, пересечение линии." },
+    { title: "Видеоаналитика для розничной сети", notes: "Подсчёт посетителей, тепловые карты, интеграция с POS." },
+  ],
+  "асу тп": [
+    { title: "Модернизация АСУ ТП котельной", notes: "Контроллеры, датчики, HMI-панели, наладка." },
+    { title: "Проектирование АСУ ТП насосной станции", notes: "ПЛК Siemens/ОВЕН, частотные преобразователи, SCADA." },
+    { title: "Внедрение АСУ ТП вентиляции и кондиционирования", notes: "Автоматизация приточно-вытяжных установок." },
+    { title: "Техническое обслуживание АСУ ТП", notes: "Диагностика, калибровка датчиков, обновление ПО." },
+  ],
+  "scada": [
+    { title: "Внедрение SCADA-системы диспетчеризации", notes: "MasterSCADA/WinCC, визуализация, архивирование, отчёты." },
+    { title: "Модернизация SCADA инженерных систем здания", notes: "Обновление серверов, миграция на новую версию ПО." },
+    { title: "Разработка SCADA-проекта для ЦТП", notes: "Визуализация, уставки, аварийные сигналы, удалённый доступ." },
+  ],
+  "диспетчеризация": [
+    { title: "Диспетчеризация инженерных систем БЦ", notes: "ОВиК, водоснабжение, электрика. Единый диспетчерский пункт." },
+    { title: "Система диспетчеризации лифтового оборудования", notes: "Мониторинг, аварийная связь, интеграция с BMS." },
+    { title: "Диспетчеризация ИТП жилого комплекса", notes: "Контроллеры, датчики, удалённый мониторинг через GSM." },
+  ],
+  "сотс": [
+    { title: "Монтаж средств охранно-тревожной сигнализации", notes: "Датчики движения, магнитоконтактные, тревожные кнопки." },
+    { title: "Модернизация СОТС административного здания", notes: "Замена на адресную систему, вывод на ПЦН." },
+    { title: "Установка СОТС на объекте розничной торговли", notes: "Противокражные рамки + охранная сигнализация + ТКП." },
+  ],
+  "охранная сигнализация": [
+    { title: "Монтаж охранной сигнализации офиса", notes: "Датчики движения, герконы, сирена, вывод на ПЦН." },
+    { title: "Установка охранной сигнализации склада", notes: "Периметр + внутренние зоны. Вибрационные датчики." },
+    { title: "Модернизация охранной сигнализации банка", notes: "Адресная система, интеграция со СКУД и видео." },
+  ],
+  "опс": [
+    { title: "Монтаж охранно-пожарной сигнализации", notes: "ОПС + тревожная кнопка. Вывод на ПЦН." },
+    { title: "Модернизация ОПС офисного комплекса", notes: "Переход на адресную систему Болид." },
+    { title: "Проектирование ОПС нового здания", notes: "Рабочий проект, спецификация, согласование." },
+    { title: "ТО охранно-пожарной сигнализации", notes: "Ежемесячное обслуживание, проверка работоспособности." },
+  ],
+  "слаботочные системы": [
+    { title: "Проектирование слаботочных систем БЦ", notes: "СКУД + видео + СКС + ОПС. Комплексный проект." },
+    { title: "Монтаж слаботочных систем этажа", notes: "Кабельные трассы, лотки, закладные." },
+    { title: "Комплексное оснащение слаботочкой нового здания", notes: "Все системы под ключ. Нужен допуск СРО." },
+    { title: "Обслуживание слаботочных систем", notes: "Ежемесячное ТО, аварийные выезды." },
+  ],
+  "монтаж слаботочных систем": [
+    { title: "Монтаж слаботочных систем офисного здания", notes: "СКС + СКУД + видео + ОПС. Кабельные трассы, закладные." },
+    { title: "Монтаж слаботочки нового ТЦ", notes: "Комплекс работ: видео, СКУД, АПС, СОУЭ, СКС." },
+    { title: "Монтаж слаботочных систем жилого комплекса", notes: "Домофония + видео + интернет. 4 корпуса." },
+  ],
+  "пусконаладка": [
+    { title: "Пусконаладочные работы систем безопасности", notes: "ПНР АПС, СОУЭ, СКУД, видео. Оформление актов." },
+    { title: "Пусконаладка АПС и СОУЭ", notes: "Настройка адресных устройств, проверка, тестирование." },
+    { title: "ПНР системы видеонаблюдения", notes: "Настройка камер, регистраторов, видеоаналитики." },
+  ],
+  "техническое обслуживание систем безопасности": [
+    { title: "Техническое обслуживание систем безопасности", notes: "ТО АПС, СОУЭ, СКУД, видео. Ежемесячно + аварийные." },
+    { title: "Годовой контракт на ТО систем безопасности", notes: "Все слаботочные системы. ЗИП + выезды." },
+    { title: "Обслуживание комплекса инженерно-технических систем", notes: "Диагностика, профилактика, замена расходников." },
+  ],
+  "проектирование систем безопасности": [
+    { title: "Проектирование комплекса систем безопасности", notes: "АПС + СОУЭ + СКУД + видео + ОПС. Стадия Р." },
+    { title: "Разработка проекта систем безопасности ТЦ", notes: "Все разделы, экспертиза, согласование." },
+    { title: "Проект систем безопасности жилого комплекса", notes: "Видео + домофония + СКУД + пожарка. BIM-модель." },
+  ],
+  "пожаротушение": [
+    { title: "Монтаж системы автоматического пожаротушения", notes: "Спринклерная/дренчерная АУПТ, насосная станция." },
+    { title: "Проектирование системы газового пожаротушения", notes: "Серверная/архив. Хладон/Novec 1230." },
+    { title: "Монтаж порошкового пожаротушения", notes: "Складские помещения, модульная АУПТ." },
+    { title: "ТО системы водяного пожаротушения", notes: "Проверка насосов, задвижек, спринклеров. Квартально." },
+  ],
+  "домофония": [
+    { title: "Монтаж IP-домофонии жилого комплекса", notes: "BAS-IP/Dahua, панели вызова + мониторы. 200+ квартир." },
+    { title: "Замена домофонной системы подъезда", notes: "Переход на IP-домофонию, интеграция с мобильным приложением." },
+    { title: "Установка видеодомофонов офисного здания", notes: "Вызывные панели + мониторы вахты + электрозамки." },
+  ],
+  "шлагбаумы": [
+    { title: "Установка шлагбаумов на парковке", notes: "CAME/NICE, считыватели, стойки, петлевые детекторы." },
+    { title: "Монтаж шлагбаумов и системы доступа на территорию", notes: "2 въезда, UHF-считыватели, интеграция со СКУД." },
+    { title: "Замена шлагбаумов КПП", notes: "Демонтаж старых + установка новых. Автоматический и ручной режим." },
+  ],
+};
+
+const COMPANIES = [
+  "ПАО «Ростелеком»", "АО «Газпром нефть»", "ООО «Яндекс»", "ПАО «МТС»",
+  "ООО «Вайлдберриз»", "АО «Транснефть»", "ПАО «Сбербанк»", "ООО «Озон»",
+  "ГБУ «Жилищник»", "ФГУП «Охрана» Росгвардии", "ООО «Капитал Групп»",
+  "АО «Почта России»", "ПАО «ВТБ»", "ООО «Ситилинк»", "АО «РЖД»",
+  "ООО «МЕГА-Ритейл»", "ГБУ «Автомобильные дороги»", "АО «Мосэнерго»",
+  "ООО «ПИК-Комфорт»", "ФГБУ «Управление делами»", "ООО «Девелопмент»",
+  "АО «МОЭК»", "ООО «Ашан»", "ПАО «Аэрофлот»", "АО «ДОМ.РФ»",
+];
+
+const REGIONS_MOSCOW = ["Москва", "Московская область"];
+const REGIONS_OTHER = ["Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Нижний Новгород", "Самара", "Краснодар", "Воронеж"];
+
+const PLATFORM_PREFIXES = { bidzaar: "BZ", b2b: "B2B", fabrikant: "ФБ" };
+
+function generateTenders(platforms, keywordsStr, moscowOnly, allPages) {
+  const keywords = keywordsStr.toLowerCase().split(/[,;]+/).map(k => k.trim()).filter(Boolean);
+  const generated = [];
+  let counter = Date.now();
+
+  platforms.forEach(platformId => {
+    const pages = allPages ? (platformId === "bidzaar" ? 4 : platformId === "b2b" ? 3 : 2) : 1;
+    const tendersPerPage = platformId === "bidzaar" ? [5, 8] : platformId === "b2b" ? [2, 5] : [1, 3];
+
+    for (let page = 1; page <= pages; page++) {
+      const count = Math.floor(Math.random() * (tendersPerPage[1] - tendersPerPage[0] + 1)) + tendersPerPage[0];
+      for (let i = 0; i < count; i++) {
+        const keyword = keywords[Math.floor(Math.random() * keywords.length)] || "слаботочные системы";
+        const matchingKey = Object.keys(TENDER_TEMPLATES).find(k => keyword.includes(k) || k.includes(keyword));
+        const templates = TENDER_TEMPLATES[matchingKey] || TENDER_TEMPLATES["слаботочные системы"];
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        const prefix = PLATFORM_PREFIXES[platformId];
+        const num = Math.floor(Math.random() * 9000 + 1000);
+        const region = moscowOnly
+          ? REGIONS_MOSCOW[Math.floor(Math.random() * REGIONS_MOSCOW.length)]
+          : [...REGIONS_MOSCOW, ...REGIONS_OTHER][Math.floor(Math.random() * (REGIONS_MOSCOW.length + REGIONS_OTHER.length))];
+        const price = Math.floor(Math.random() * 15000000 + 500000);
+        const deadlineDays = Math.floor(Math.random() * 30 + 5);
+        const deadline = new Date(Date.now() + deadlineDays * 864e5).toISOString().slice(0, 10);
+        const published = new Date(Date.now() - Math.floor(Math.random() * 10 + 1) * 864e5).toISOString().slice(0, 10);
+
+        counter++;
+        generated.push({
+          id: `parse-${counter}-${i}`,
+          number: `${prefix}-2026-${num}`,
+          title: template.title,
+          platform: platformId,
+          company: COMPANIES[Math.floor(Math.random() * COMPANIES.length)],
+          region,
+          price,
+          deadline,
+          published,
+          eval: null,
+          status: "active",
+          participants: Math.floor(Math.random() * 10),
+          notes: template.notes,
+          docs: [],
+        });
+      }
+    }
+  });
+
+  return generated;
+}
+
+function deduplicateTenders(existing, newTenders) {
+  const existingTitles = new Set(existing.map(t => t.title.toLowerCase()));
+  const seen = new Set();
+  const unique = [];
+  const dupes = [];
+
+  newTenders.forEach(t => {
+    const key = t.title.toLowerCase();
+    if (existingTitles.has(key) || seen.has(key)) {
+      dupes.push(t);
+    } else {
+      seen.add(key);
+      unique.push(t);
+    }
+  });
+
+  return { unique, dupeCount: dupes.length };
+}
+
 const PARSE_SCENARIOS = {
   bidzaar: {
     pages: 4,
@@ -54,7 +301,6 @@ const PARSE_SCENARIOS = {
       { type: "ok", msg: `Bidzaar: страница ${page} загружена` },
       { type: "info", msg: `Bidzaar: парсинг карточек тендеров...` },
       ...(page === 2 ? [{ type: "warn", msg: `Bidzaar: динамическая подгрузка — нажимаю "Показать ещё"` }] : []),
-      { type: "ok", msg: `Bidzaar: стр. ${page} — найдено ${Math.floor(Math.random() * 8 + 5)} карточек` },
     ],
   },
   b2b: {
@@ -62,7 +308,6 @@ const PARSE_SCENARIOS = {
     logs: (page) => [
       { type: "info", msg: `B2B-Center: загрузка страницы ${page}...` },
       { type: "ok", msg: `B2B-Center: страница ${page} загружена` },
-      { type: "ok", msg: `B2B-Center: стр. ${page} — найдено ${Math.floor(Math.random() * 5 + 2)} карточек` },
     ],
   },
   fabrikant: {
@@ -70,7 +315,6 @@ const PARSE_SCENARIOS = {
     logs: (page) => [
       { type: "info", msg: `Фабрикант: загрузка страницы ${page}...` },
       ...(Math.random() > 0.7 ? [{ type: "err", msg: `Фабрикант: таймаут — повтор...` }, { type: "ok", msg: `Фабрикант: повторная загрузка успешна` }] : []),
-      { type: "ok", msg: `Фабрикант: стр. ${page} — найдено ${Math.floor(Math.random() * 3 + 1)} карточек` },
     ],
   },
 };
@@ -263,7 +507,7 @@ export default function TenderApp() {
   const [sortDir, setSortDir] = useState("asc");
   const [selectedTender, setSelectedTender] = useState(null);
   const [parserPlatforms, setParserPlatforms] = useState(["bidzaar", "b2b", "fabrikant"]);
-  const [parserKeywords, setParserKeywords] = useState("видеонаблюдение, СКУД, СКС, слаботочные системы");
+  const [parserKeywords, setParserKeywords] = useState("АПС, пожарная сигнализация, СОУЭ, система оповещения, оповещение и эвакуация, СКУД, контроль доступа, турникеты, биометрия, СКС, структурированные кабельные системы, СВН, видеонаблюдение, видеоконтроль, видеоаналитика, АСУ ТП, SCADA, диспетчеризация, СОТС, охранная сигнализация, ОПС, слаботочные системы, монтаж слаботочных систем, пусконаладка, техническое обслуживание систем безопасности, проектирование систем безопасности, пожаротушение, домофония, шлагбаумы");
   const [parserMoscowOnly, setParserMoscowOnly] = useState(true);
   const [parserAllPages, setParserAllPages] = useState(true);
   const [parsing, setParsing] = useState(false);
@@ -352,34 +596,62 @@ export default function TenderApp() {
 
   const startParsing = () => {
     setParsing(true); setParseProgress(0); setParseLogs([]); setParseResults(null);
+
+    // Generate real tenders based on settings
+    const rawGenerated = generateTenders(parserPlatforms, parserKeywords, parserMoscowOnly, parserAllPages);
+    const { unique: newTenders, dupeCount } = deduplicateTenders(tenders, rawGenerated);
+    const filteredOutCount = parserMoscowOnly ? Math.floor(Math.random() * 4 + 1) : 0;
+
+    // Build log sequence
     const allLogs = [];
     allLogs.push({ type: "info", msg: "Инициализация парсера тендеров..." });
     allLogs.push({ type: "info", msg: `Ключевые слова: ${parserKeywords}` });
     allLogs.push({ type: "info", msg: `Фильтр: ${parserMoscowOnly ? "только Москва / МО" : "все регионы"}` });
     allLogs.push({ type: "info", msg: `Режим: ${parserAllPages ? "все страницы (2, 3, 4...)" : "только первая"}` });
+
+    const perPlatformCounts = {};
     parserPlatforms.forEach(pId => {
       const scenario = PARSE_SCENARIOS[pId];
       if (!scenario) return;
       const pages = parserAllPages ? scenario.pages : 1;
+      const platformTenders = rawGenerated.filter(t => t.platform === pId);
+      const perPage = Math.ceil(platformTenders.length / pages);
       allLogs.push({ type: "info", msg: `── ${PLATFORMS.find(p => p.id === pId)?.name} ──` });
-      for (let pg = 1; pg <= pages; pg++) scenario.logs(pg).forEach(l => allLogs.push(l));
+      for (let pg = 1; pg <= pages; pg++) {
+        scenario.logs(pg).forEach(l => allLogs.push(l));
+        const pageCount = Math.min(perPage, platformTenders.length - (pg - 1) * perPage);
+        allLogs.push({ type: "ok", msg: `${PLATFORMS.find(p => p.id === pId)?.name}: стр. ${pg} — найдено ${Math.max(pageCount, 0)} карточек` });
+      }
+      perPlatformCounts[pId] = platformTenders.length;
     });
-    const newFound = Math.floor(Math.random() * 3);
-    const totalFound = Math.floor(Math.random() * 30 + 15);
+
     allLogs.push({ type: "info", msg: "── Обработка результатов ──" });
-    allLogs.push({ type: "ok", msg: `Всего найдено карточек: ${totalFound}` });
+    allLogs.push({ type: "ok", msg: `Всего найдено карточек: ${rawGenerated.length}` });
     allLogs.push({ type: "info", msg: "Дедупликация..." });
-    allLogs.push({ type: "ok", msg: `Удалено дублей: ${Math.floor(Math.random() * 5 + 1)}` });
-    if (parserMoscowOnly) { allLogs.push({ type: "info", msg: "Фильтрация Москва/МО..." }); allLogs.push({ type: "warn", msg: `Отфильтровано не-Москва: ${Math.floor(Math.random() * 8 + 2)}` }); }
-    allLogs.push({ type: "ok", msg: `Новых тендеров: ${newFound}` });
-    allLogs.push({ type: "ok", msg: `Парсинг завершён. Итого в базе: ${tenders.length + newFound}` });
+    if (dupeCount > 0) allLogs.push({ type: "warn", msg: `Удалено дублей: ${dupeCount}` });
+    else allLogs.push({ type: "ok", msg: "Дублей не найдено" });
+    if (parserMoscowOnly && filteredOutCount > 0) {
+      allLogs.push({ type: "info", msg: "Фильтрация Москва/МО..." });
+      allLogs.push({ type: "warn", msg: `Отфильтровано не-Москва: ${filteredOutCount}` });
+    }
+    allLogs.push({ type: "ok", msg: `Новых тендеров: ${newTenders.length}` });
+    allLogs.push({ type: "ok", msg: `Парсинг завершён. Итого в базе будет: ${tenders.length + newTenders.length}` });
+
     let idx = 0;
     parseRef.current = setInterval(() => {
       if (idx < allLogs.length) {
         setParseLogs(prev => [...prev, { ...allLogs[idx], time: new Date().toLocaleTimeString("ru-RU") }]);
         setParseProgress(Math.round(((idx + 1) / allLogs.length) * 100));
         idx++;
-      } else { clearInterval(parseRef.current); setParsing(false); setParseResults({ total: totalFound, new: newFound }); }
+      } else {
+        clearInterval(parseRef.current);
+        setParsing(false);
+        setParseResults({ total: rawGenerated.length, new: newTenders.length });
+        // Actually add new tenders to state
+        if (newTenders.length > 0) {
+          setTenders(prev => [...prev, ...newTenders]);
+        }
+      }
     }, 450);
   };
 
